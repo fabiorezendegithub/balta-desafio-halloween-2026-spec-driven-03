@@ -129,6 +129,8 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 
 **Justificativa**: no SQLite, comparações SQL sobre `DateTimeOffset` com offsets diferentes são feitas como texto e ficam erradas. Normalizar para UTC antes de gravar e de comparar corrige isso. `TimeProvider` permite testar expiração sem `Thread.Sleep`. Ver [research.md](./research.md) R5.
 
+**Ajuste de implementação**: o provider SQLite do EF Core não traduz comparações de `DateTimeOffset` em LINQ, e a condição `ExpiresAtUtc > agora` do D2 falhava na tradução. `ExpiresAtUtc` é guardado como ticks UTC (`long`, via `ValueConverter` em `LinkConfiguration`). O tipo no domínio continua `DateTimeOffset`, e a comparação segue dentro do banco, na mesma instrução do contador.
+
 ### D10. Migrações EF Core
 
 **Decisão**: esquema versionado por migrações EF Core. A aplicação aplica as migrações na inicialização.
@@ -163,7 +165,7 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 | Pacote | Versão | Projeto | Motivo | Alternativa considerada | Por que a alternativa não atende |
 |--------|--------|---------|--------|-------------------------|----------------------------------|
 | `Microsoft.EntityFrameworkCore.Sqlite` | 10.0.x (linha 10.0, mesma do .NET 10; patch fixado no primeiro commit de implementação) | Infrastructure | Provider SQLite exigido pela entrada do usuário | `Microsoft.Data.Sqlite` puro, sem EF | Violaria o Princípio III, que exige EF Core. |
-| `Microsoft.EntityFrameworkCore.Design` | 10.0.x (mesma linha) | Infrastructure (`PrivateAssets=all`) | Gerar migrações com `dotnet ef migrations add` | `EnsureCreated` | Não gera migrações e não evolui esquema existente (D10). |
+| `Microsoft.EntityFrameworkCore.Design` | 10.0.x (mesma linha) | Infrastructure e Api (`PrivateAssets=all`; o `dotnet ef` exige o pacote no projeto de inicialização, que é a Api) | Gerar migrações com `dotnet ef migrations add` | `EnsureCreated` | Não gera migrações e não evolui esquema existente (D10). |
 | `Microsoft.AspNetCore.Mvc.Testing` | 10.0.x (mesma linha) | IntegrationTests | `WebApplicationFactory` para exercitar endpoints pela pilha HTTP (Princípio V) | `Microsoft.AspNetCore.TestHost` direto | Obriga a reimplementar host, configuração e conteúdo raiz que o `Mvc.Testing` já resolve. |
 
 **Não adicionados, de propósito**:

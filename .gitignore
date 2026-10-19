@@ -1,0 +1,14 @@
+# Build
+bin/
+obj/
+
+# Banco local
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.vs/
+.idea/
+.vscode/
+*.user
