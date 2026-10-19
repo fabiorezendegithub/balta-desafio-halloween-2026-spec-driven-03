@@ -1,0 +1,230 @@
+openapi: 3.1.0
+info:
+  title: Encurtador de URLs
+  version: 1.0.0
+  description: |
+    Contrato da API HTTP do encurtador. Mensagens de erro (`title` e `detail`) em português.
+    Erros usam `application/problem+json` (ProblemDetails).
+servers:
+  - url: http://localhost:5000
+paths:
+  /api/links:
+    post:
+      summary: Criar link curto
+      description: |
+        Cria um link curto. Se `customCode` não for informado, o código é gerado com 7 caracteres.
+        A chave de gerenciamento é retornada somente nesta resposta.
+      operationId: createLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+      responses:
+        '201':
+          description: Link criado.
+          headers:
+            Location:
+              description: URL do próprio link curto.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedLinkResponse'
+        '400':
+          $ref: '#/components/responses/ValidationProblem'
+        '429':
+          $ref: '#/components/responses/TooManyRequestsProblem'
+
+  /{code}:
+    get:
+      summary: Acessar link curto
+      description: |
+        Redireciona para o destino e incrementa o contador em 1, se o link estiver ativo.
+        Resposta sem cache (`Cache-Control: no-store`), para que cada acesso passe pelo sistema.
+      operationId: redirectLink
+      parameters:
+        - $ref: '#/components/parameters/Code'
+      responses:
+        '302':
+          description: Redirecionamento para a URL de destino.
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+        '404':
+          $ref: '#/components/responses/NotFoundProblem'
+        '410':
+          $ref: '#/components/responses/GoneProblem'
+
+  /api/links/{code}:
+    get:
+      summary: Consultar total de acessos
+      description: |
+        Retorna os dados do link e o total de acessos. Exige a chave de gerenciamento
+        recebida na criação. Links expirados continuam consultáveis.
+      operationId: getLinkStats
+      security:
+        - ManagementKey: []
+      parameters:
+        - $ref: '#/components/parameters/Code'
+      responses:
+        '200':
+          description: Dados do link.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkStatsResponse'
+        '400':
+          description: Cabeçalho `X-Management-Key` ausente ou em formato inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '401':
+          description: Chave válida em formato, mas que não corresponde ao link.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          $ref: '#/components/responses/NotFoundProblem'
+
+components:
+  parameters:
+    Code:
+      name: code
+      in: path
+      required: true
+      description: Código do link, sem diferenciar maiúsculas de minúsculas.
+      schema:
+        type: string
+        minLength: 4
+        maxLength: 20
+        pattern: '^[A-Za-z0-9]+$'
+
+  securitySchemes:
+    ManagementKey:
+      type: apiKey
+      in: header
+      name: X-Management-Key
+      description: Chave de gerenciamento de 43 caracteres base64url, recebida na criação.
+
+  responses:
+    ValidationProblem:
+      description: Falha de validação.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    TooManyRequestsProblem:
+      description: Limite de criações por origem excedido.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NotFoundProblem:
+      description: Nenhum link com esse código.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    GoneProblem:
+      description: Link existe, mas expirou. Não redireciona e não altera o contador.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    CreateLinkRequest:
+      type: object
+      required: [targetUrl]
+      additionalProperties: false
+      properties:
+        targetUrl:
+          type: string
+          maxLength: 2048
+          description: URL de destino, começando com `http://` ou `https://`.
+          examples: ['https://exemplo.com/pagina-longa']
+        customCode:
+          type: string
+          minLength: 4
+          maxLength: 20
+          pattern: '^[A-Za-z0-9]+$'
+          description: Código escolhido pelo criador. Não pode ser reservado nem já estar em uso.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Data e hora de expiração, com fuso horário explícito. Deve ser futura.
+
+    CreatedLinkResponse:
+      type: object
+      required: [code, shortUrl, targetUrl, createdAt, managementKey]
+      properties:
+        code:
+          type: string
+          example: 'k7m2x9q'
+        shortUrl:
+          type: string
+          format: uri
+        targetUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+          description: Nulo quando o link não expira.
+        managementKey:
+          type: string
+          minLength: 43
+          maxLength: 43
+          description: Chave secreta de gerenciamento. Exibida uma única vez.
+
+    LinkStatsResponse:
+      type: object
+      required: [code, targetUrl, createdAt, clickCount]
+      properties:
+        code:
+          type: string
+        targetUrl:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        clickCount:
+          type: integer
+          format: int64
+          minimum: 0
+
+    ProblemDetails:
+      type: object
+      description: Corpo RFC 9457 (`application/problem+json`).
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+          description: Título em português.
+        status:
+          type: integer
+        detail:
+          type: string
+          description: Detalhe em português.
+        instance:
+          type: string
