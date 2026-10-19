@@ -197,7 +197,7 @@ Resultado esperado: vinte `201` e um `429` no final. Nenhum link extra é criado
 
 ## 12. Concorrência (REQ-015, SC-004)
 
-Os testes de integração `ConcurrencyTests` cobrem 100 acessos simultâneos e criações simultâneas com o mesmo código. Para repetir manualmente:
+Os testes de integração `ConcurrentAccessTests` cobrem 100 acessos simultâneos, e `ConcurrentCreationTests` cobre criações simultâneas com o mesmo código. Para repetir manualmente:
 
 ```bash
 for i in $(seq 1 100); do curl -s -o /dev/null "$BASE/$CODE" & done; wait
@@ -205,6 +205,18 @@ curl -s "$BASE/api/links/$CODE" -H "X-Management-Key: $KEY" | jq .clickCount
 ```
 
 Resultado esperado: o total aumentou exatamente 100 em relação ao valor anterior.
+
+## 13. Tempo de criação (SC-001)
+
+Medir o tempo entre o envio da URL e a resposta com o link curto. Resultado esperado: menos de 30 segundos. Na prática leva milissegundos, mas o critério é medido aqui.
+
+```bash
+time curl -s -o /dev/null -w '%{http_code}\n' -X POST "$BASE/api/links" \
+  -H 'Content-Type: application/json' \
+  -d '{"targetUrl":"https://exemplo.com/medicao"}'
+```
+
+Resultado esperado: status `201` e tempo `real` abaixo de 30 segundos.
 
 ## Critérios de aceite
 
@@ -215,3 +227,4 @@ Resultado esperado: o total aumentou exatamente 100 em relação ao valor anteri
 - [ ] Expiração bloqueia redirecionamento sem alterar o contador (passo 7).
 - [ ] Dados sobrevivem ao reinício (passo 9).
 - [ ] Toda entrada inválida retorna `400` com ProblemDetails (passo 10).
+- [ ] Criação de link leva menos de 30 segundos (passo 13, SC-001).

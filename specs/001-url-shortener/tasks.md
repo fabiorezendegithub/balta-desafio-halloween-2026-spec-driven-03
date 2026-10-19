@@ -114,19 +114,23 @@ Projetos conforme [plan.md](./plan.md), seção "Estrutura do Projeto":
   - data de expiração no passado recusada (REQ-007); data futura aceita
   - sem data de expiração, `ExpiresAtUtc` é nulo (REQ-006)
   - código já em uso no repositório: `Validation` com mensagem de código em uso, e o link existente não é alterado (REQ-003, cenário 3)
+  - código `MeuLink` e `meulink` são tratados como o mesmo `CodeKey` (REQ-004): a segunda criação retorna `Validation` por código em uso
   - colisão do código gerado: tenta novamente até 5 vezes e depois falha (R1)
+  - limitador retorna `false`: `RateLimited`, e `TryInsertAsync` nunca é chamado (REQ-017, D7)
+  - limitador retorna `true`: fluxo segue normalmente. Usa um limitador falso em `tests/Encurtador.UnitTests/Fakes/`
 - [ ] T029 [US1] Criar `tests/Encurtador.IntegrationTests/LinkCreationEndpointTests.cs`. Depende de T022, T039:
   - caminho feliz sem código: `201`, `Location`, `code` com 7 caracteres, `shortUrl`, `managementKey` com 43 caracteres, `expiresAt` nulo (V)
   - caminho feliz com código personalizado: `201` com o mesmo código
   - URL inválida, código fora do formato, código reservado, código em uso e data no passado: cada um retorna `400` com `Content-Type: application/problem+json` (VI)
 - [ ] T030 [US1] Criar `tests/Encurtador.IntegrationTests/ConcurrentCreationTests.cs`. Vinte requisições simultâneas com o mesmo código personalizado produzem exatamente uma `201`, e as demais `400` em código em uso. Prova o caso de borda e a garantia do índice (D1). Depende de T022, T039
-- [ ] T031 [US1] Criar `tests/Encurtador.IntegrationTests/RateLimitTests.cs`. Com `Links:CreationLimitPerHour` = 3 na factory, a quarta criação do mesmo IP retorna `429` com ProblemDetails em português, e nenhum link novo é criado (REQ-017). Depende de T022, T040
+- [ ] T031 [US1] Criar `tests/Encurtador.IntegrationTests/RateLimitTests.cs`. Com `Links:CreationLimitPerHour` = 3 na factory, a quarta criação do mesmo IP retorna `429` com ProblemDetails em português, e nenhum link novo é criado (REQ-017). Valida a fiação entre endpoint, serviço e adaptador. A regra em si é coberta por T028. Definir o IP de origem por cabeçalho de teste, para não depender de `RemoteIpAddress` nulo no `TestServer`. Depende de T022, T040
 
 ### Implementação da História 1
 
 - [ ] T032 [P] [US1] Criar `src/Encurtador.Application/Links/UrlValidator.cs`. Valida esquema `http` ou `https`, URI absoluta e no máximo 2048 caracteres. Retorna `LinkResult` com mensagem em português (REQ-005)
 - [ ] T033 [P] [US1] Criar `src/Encurtador.Application/Links/ReservedCodes.cs` com o conjunto fixo `api, health, healthz, ready, live, swagger, openapi, admin, links, metrics`, comparado com `StringComparer.OrdinalIgnoreCase` (REQ-018, D8)
 - [ ] T034 [P] [US1] Criar `src/Encurtador.Application/Links/IShortCodeGenerator.cs` e `src/Encurtador.Application/Links/ShortCodeGenerator.cs`. Gera 7 caracteres com `RandomNumberGenerator.GetInt32`, do alfabeto `23456789abcdefghjkmnpqrstuvwxyz` (D4, R1)
+- [ ] T034a [P] [US1] Criar `src/Encurtador.Application/Links/ICreationLimiter.cs`, a porta do limite de criação: `ValueTask<bool> TryAcquireAsync(string origin, CancellationToken ct)`. `true` quando a origem ainda pode criar, `false` quando excedeu (REQ-017, D7). Sem dependência de ASP.NET
 - [ ] T035 [P] [US1] Criar `src/Encurtador.Application/Links/ManagementKey.cs`:
   - `Generate()`: 32 bytes aleatórios em base64url, 43 caracteres sem padding
   - `Hash(string key)`: SHA-256 em hexadecimal, 64 caracteres
@@ -134,8 +138,9 @@ Projetos conforme [plan.md](./plan.md), seção "Estrutura do Projeto":
   - `IsWellFormed(string key)`: 43 caracteres base64url
 
   Usada também pela história 3 (D3, R4)
-- [ ] T036 [P] [US1] Criar `src/Encurtador.Application/Links/CreateLinkCommand.cs` e `src/Encurtador.Application/Links/CreatedLink.cs` como records. `CreatedLink` carrega código, destino, criação, expiração e chave em texto, esta última só para a resposta
+- [ ] T036 [P] [US1] Criar `src/Encurtador.Application/Links/CreateLinkCommand.cs` e `src/Encurtador.Application/Links/CreatedLink.cs` como records. `CreateLinkCommand` inclui `Origin` (endereço de origem da requisição). `CreatedLink` carrega código, destino, criação, expiração e chave em texto, esta última só para a resposta
 - [ ] T037 [US1] Implementar `CreateAsync(CreateLinkCommand, CancellationToken)` em `src/Encurtador.Application/Links/LinkService.cs`. Todas as regras ficam aqui (Princípio II). Ordem:
+  0. consultar `ICreationLimiter.TryAcquireAsync(command.Origin)`. `false` vira `RateLimited`, sem criar link (REQ-017, D7)
   1. validar URL (T032)
   2. validar expiração contra `TimeProvider.GetUtcNow()` (REQ-007)
   3. código personalizado: formato (REQ-002) e reservado (T033)
@@ -144,10 +149,10 @@ Projetos conforme [plan.md](./plan.md), seção "Estrutura do Projeto":
   6. `TryInsertAsync`. `false` vira `Validation` "código já em uso" (REQ-003, D1)
   7. código gerado: repetir o passo 5 e 6 até 5 vezes em colisão (R1)
 
-  Depende de T032 a T036
+  Depende de T032 a T036 e T034a
 - [ ] T038 [P] [US1] Criar `src/Encurtador.Api/Models/CreateLinkRequest.cs` (campos `targetUrl`, `customCode`, `expiresAt`) e `src/Encurtador.Api/Models/LinkResponses.cs` com `CreatedLinkResponse` (`code`, `shortUrl`, `targetUrl`, `createdAt`, `expiresAt`, `managementKey`). Nomes em camelCase, conforme `contracts/openapi.yaml`
-- [ ] T039 [US1] Criar `src/Encurtador.Api/Endpoints/LinkEndpoints.cs` com `MapLinkEndpoints(this IEndpointRouteBuilder app)` e a rota `POST /api/links` com `RequireRateLimiting("creation")`. O handler só lê a requisição, chama `LinkService.CreateAsync` e mapeia o resultado: `201` com `Location` e corpo, ou erro via `ProblemMapper` (T021). Sem regra de negócio no lambda (Princípio II) e sem `AppDbContext` (Princípio I). Depende de T037, T038
-- [ ] T040 [US1] Atualizar `src/Encurtador.Api/Program.cs`: registrar `LinkService`, `ShortCodeGenerator` e `UrlValidator` como serviços; configurar `AddRateLimiter` com `FixedWindowRateLimiter` particionado por `RemoteIpAddress`, janela de 1 hora e limite `Links:CreationLimitPerHour`, aplicado à política `creation`. `OnRejected` responde 429 com ProblemDetails em português; chamar `app.MapLinkEndpoints()`. Depende de T037, T039
+- [ ] T039 [US1] Criar `src/Encurtador.Api/Endpoints/LinkEndpoints.cs` com `MapLinkEndpoints(this IEndpointRouteBuilder app)` e a rota `POST /api/links`. O handler só lê a requisição, passa `RemoteIpAddress` como `Origin` do comando, chama `LinkService.CreateAsync` e mapeia o resultado: `201` com `Location` e corpo, ou erro via `ProblemMapper` (T021). Sem regra de negócio no lambda (Princípio II) e sem `AppDbContext` (Princípio I). Depende de T037, T038
+- [ ] T040 [US1] Criar `src/Encurtador.Api/RateLimiting/FixedWindowCreationLimiter.cs`, adaptador de `ICreationLimiter` com `FixedWindowRateLimiter` particionado por `Origin`, janela de 1 hora e limite lido de `Links:CreationLimitPerHour`. Atualizar `src/Encurtador.Api/Program.cs`: registrar `LinkService`, `ShortCodeGenerator`, `UrlValidator` e `FixedWindowCreationLimiter` (como `ICreationLimiter`); chamar `app.MapLinkEndpoints()`. Não usar `AddRateLimiter` nem `RequireRateLimiting`, pois o controle passa pela porta. Depende de T034a, T037, T039
 
 **Checkpoint**: a História 1 funciona de forma independente. Criação com código gerado e personalizado, validação e limite de criação passam nos testes.
 
@@ -166,6 +171,8 @@ Projetos conforme [plan.md](./plan.md), seção "Estrutura do Projeto":
   - link expirado: `Expired` e nenhum incremento (REQ-010)
   - código inexistente: `NotFound` e nenhum incremento (REQ-011)
   - instante exato de expiração: `Expired` (caso de borda da spec)
+  - acesso a link ativo incrementa `ClickCount` exatamente em 1, verificado no `InMemoryLinkRepository` (REQ-009)
+  - três acessos seguidos incrementam em 3 (REQ-009)
 - [ ] T042 [P] [US2] Criar `tests/Encurtador.UnitTests/LinkTests.cs` para `Link.IsExpiredAt`: sem expiração nunca expira; antes da expiração está ativo; exatamente no instante de expiração está expirado; depois está expirado (regra de expiração, Princípio IV)
 - [ ] T043 [US2] Criar `tests/Encurtador.IntegrationTests/RedirectEndpointTests.cs`. Depende de T022, T046:
   - caminho feliz: `GET /{code}` retorna `302`, `Location` com o destino e `Cache-Control: no-store` (V; REQ-008, REQ-016)
@@ -233,7 +240,7 @@ Projetos conforme [plan.md](./plan.md), seção "Estrutura do Projeto":
 - [ ] T056 [P] Verificar Princípio VIII: todos os `title` e `detail` de ProblemDetails, em `src/Encurtador.Application/Links/LinkResult.cs`, `src/Encurtador.Application/Links/UrlValidator.cs` e `src/Encurtador.Api/Http/ProblemMapper.cs`, estão em português. Nomes de classes e métodos em inglês
 - [ ] T057 [P] Verificar REQ-013 e segurança: a chave de gerenciamento em texto nunca é logada nem aparece em respostas além da criação, e `ManagementKeyHash` nunca é retornado. Revisar `src/Encurtador.Api/Program.cs` (logging) e `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`. Confirmar que ProblemDetails não expõe detalhe interno de exceção
 - [ ] T058 Sincronizar `contracts/openapi.yaml` com a implementação. Se algum status, campo ou header divergir, corrigir o contrato e registrar a divergência em `plan.md`, seção "Decisões de Resposta HTTP"
-- [ ] T059 Executar `quickstart.md` do passo 1 ao 12 e marcar os critérios de aceite do arquivo
+- [ ] T059 Executar `quickstart.md` do passo 1 ao 13 e marcar os critérios de aceite do arquivo. O passo 13 verifica SC-001 (criação em menos de 30 segundos)
 - [ ] T060 Executar `dotnet test tests/Encurtador.UnitTests` e `dotnet test tests/Encurtador.IntegrationTests`, e confirmar que todos os testes passam. Registrar a saída, sem omitir falhas
 - [ ] T061 Verificar Princípio IX no histórico de commits (`git log`) da branch da funcionalidade: formato `tipo(REQ-NNN): descrição`, com tipo entre `feat`, `fix`, `test`, `refactor`, `docs` e `chore`
 
@@ -309,13 +316,13 @@ Task: "T036 CreateLinkCommand.cs e CreatedLink.cs"
 |------|---------|-----|
 | 1. Setup | 7 | T001–T007 |
 | 2. Fundação | 16 | T008–T023 |
-| 3. História 1 (P1, criar) | 17 | T024–T040 |
+| 3. História 1 (P1, criar) | 18 | T024–T040, T034a |
 | 4. História 2 (P2, redirecionar) | 6 | T041–T046 |
 | 5. História 3 (P3, consultar) | 7 | T047–T053 |
 | N. Polimento | 8 | T054–T061 |
-| **Total** | **61** | |
+| **Total** | **62** | |
 
-Tarefas de teste: 16 (T023; T024–T031 na história 1; T041–T044 na história 2; T047–T049 na história 3). Tarefas marcadas `[P]`: 29.
+Tarefas de teste: 16 (T023; T024–T031 na história 1; T041–T044 na história 2; T047–T049 na história 3). Tarefas marcadas `[P]`: 30.
 
 **Escopo do MVP sugerido**: Fases 1, 2 e 3 (T001–T040). Entregam criação com código gerado e personalizado, validação em ProblemDetails e limite de criação.
 

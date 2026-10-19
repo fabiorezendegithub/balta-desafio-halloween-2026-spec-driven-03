@@ -47,7 +47,12 @@ paths:
         Resposta sem cache (`Cache-Control: no-store`), para que cada acesso passe pelo sistema.
       operationId: redirectLink
       parameters:
-        - $ref: '#/components/parameters/Code'
+        - name: code
+          in: path
+          required: true
+          description: Código do link. Código fora do formato resulta em 404, sem validação de formato (exceção ao Princípio VI, ver plan.md).
+          schema:
+            type: string
       responses:
         '302':
           description: Redirecionamento para a URL de destino.

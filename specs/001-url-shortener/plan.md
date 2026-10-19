@@ -39,7 +39,7 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 **Tipo de projeto**: serviço web (API HTTP e redirecionamento).
 
 **Metas de desempenho**:
-- SC-001: o link curto é devolvido em menos de 30 segundos após o envio. Essa meta é folgada para o escopo.
+- SC-001: o link curto é devolvido em menos de 30 segundos após o envio. Essa meta é folgada para o escopo. Verificada pelo passo 13 do `quickstart.md`, por medição manual, sem teste automatizado.
 - Não há meta de latência de redirecionamento nesta versão. A especificação não a define.
 
 **Restrições**:
@@ -51,7 +51,7 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 
 **Escala/Escopo**: até cerca de 100 mil acessos por dia (≈ 1,2 requisições por segundo em média, com pico estimado de 10× ≈ 12 por segundo). Pequena escala. O volume de links não foi especificado. O modelo é indexado para milhões de linhas.
 
-## Verificação da Constituição
+## Constitution Check
 
 *GATE: deve passar antes da Fase 0. Reavaliado após o desenho da Fase 1.*
 
@@ -113,9 +113,9 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 
 ### D7. Limite de criação por endereço de origem
 
-**Decisão**: 20 criações por hora por `RemoteIpAddress`, por janela fixa, com o `FixedWindowRateLimiter` do ASP.NET Core. O valor é configurável em `Links:CreationLimitPerHour`. Quando excedido, responde `429` com ProblemDetails em português.
+**Decisão**: o limite de criações por origem é uma regra de negócio. Fica atrás da porta `ICreationLimiter`, na camada de aplicação, com 20 criações por hora por origem, configurável em `Links:CreationLimitPerHour`. O `LinkService` consulta a porta antes de qualquer validação. Quando o limite é excedido, retorna `RateLimited`, que o `ProblemMapper` converte em `429` com ProblemDetails em português. O adaptador `FixedWindowCreationLimiter`, em `Api/RateLimiting/`, usa o `FixedWindowRateLimiter` do ASP.NET Core. É o único ponto que conhece o framework.
 
-**Justificativa**: o uso esperado é de criação manual por pessoas. Vinte por hora cobre o uso legítimo e barra abuso automatizado. O contador fica em memória, o que é suficiente para a instância única desta versão. Compartilhar o limite entre instâncias exigiria armazenamento externo, fora de escopo.
+**Justificativa**: REQ-017 é regra de negócio, e o Princípio II exige que regras vivam na camada de aplicação. A porta permite teste unitário com um limitador falso. O framework continua fazendo a contagem por janela, sem pacote novo. O uso esperado é de criação manual por pessoas, e vinte por hora cobre o uso legítimo e barra abuso automatizado. O contador fica em memória, o que basta para a instância única desta versão. Compartilhar o limite entre instâncias exigiria armazenamento externo, fora de escopo.
 
 ### D8. Palavras reservadas
 
@@ -155,7 +155,7 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 
 **Interpretações a confirmar**:
 - O código de "já em uso" e o de "reservado" são `400`, e não `409`. O Princípio VI não admite exceção para `422`, e o caso é tratado como código inválido para criação. Se preferir `409`, a emenda deve ser feita antes, pela regra de governança.
-- Código inválido no caminho do redirecionamento (`GET /{code}`) responde `404`, e não `400`. Nenhum link pode existir com esse código. Essa rota não recebe entrada de validação, só busca. Se o Princípio VI for lido de forma estrita, o `400` seria exigido também aqui.
+- Código fora do formato em `GET /{code}` responde `404`, e não `400`. Exceção ao Princípio VI, aceita pelo responsável do projeto. Motivo: a rota faz busca, não recebe entrada de validação, e nenhum link pode existir com código fora do formato.
 - A chave ausente ou em formato inválido é `400` (validação de entrada). A chave em formato válido que não confere é `401` (autenticação).
 
 ## Dependências Novas
@@ -179,7 +179,7 @@ Os pacotes novos estão justificados na seção "Dependências Novas" abaixo, co
 
 Não implementadas nesta versão. Registradas para que a troca não quebre o desenho:
 - Migrações são específicas de provider. Ficarão em pasta própria, por exemplo `Infrastructure/Migrations/PostgreSql`, selecionada pelo mesmo ponto de composição.
-- `Infrastructure/Persistence/UniqueConstraintDetector` é o único lugar que conhece o código de erro de violação de unicidade de cada provider (SQLite `19`, PostgreSQL `23505`). O resto do código só vê `bool`.
+- `Infrastructure/Persistence/UniqueConstraintDetector` é o único lugar que conhece o código de erro de violação de unicidade de cada provider (SQLite: `SqliteExtendedErrorCode` `2067`, `SQLITE_CONSTRAINT_UNIQUE`; PostgreSQL: `23505`). O resto do código só vê `bool`.
 - `DateTimeOffset` com UTC (D9) funciona sem mudança em PostgreSQL `timestamptz`.
 
 ## Estrutura do Projeto
@@ -204,9 +204,13 @@ specs/001-url-shortener/
 ```text
 src/
 ├── Encurtador.Api/                          # Minimal APIs, composição da aplicação
-│   ├── Program.cs                           # Host, limitação de taxa, chamada de composição
+│   ├── Program.cs                           # Host, composição, MapLinkEndpoints
 │   ├── Endpoints/
 │   │   └── LinkEndpoints.cs                 # Único arquivo de endpoints do recurso "link"
+│   ├── Http/
+│   │   └── ProblemMapper.cs                 # ErrorKind → status HTTP e ProblemDetails
+│   ├── RateLimiting/
+│   │   └── FixedWindowCreationLimiter.cs    # Adaptador da porta com FixedWindowRateLimiter
 │   ├── Models/
 │   │   ├── CreateLinkRequest.cs
 │   │   └── LinkResponses.cs
@@ -217,7 +221,12 @@ src/
 │       ├── Link.cs                          # Entidade de domínio
 │       ├── LinkService.cs                   # Dona das regras de negócio
 │       ├── LinkResult.cs                    # Resultado com erro tipado, sem exceção para fluxo
+│       ├── AccessOutcome.cs                 # Redirected, Expired ou NotFound
+│       ├── CreateLinkCommand.cs             # Entrada de criação, inclui Origin
+│       ├── CreatedLink.cs                   # Saída de criação, inclui chave em texto
+│       ├── LinkStats.cs                     # Saída da consulta de acessos
 │       ├── ILinkRepository.cs               # Porta de persistência
+│       ├── ICreationLimiter.cs              # Porta do limite de criação (D7)
 │       ├── IShortCodeGenerator.cs
 │       ├── ShortCodeGenerator.cs            # Alfabeto de D4
 │       ├── ReservedCodes.cs                 # Lista de D8
@@ -237,20 +246,29 @@ src/
 
 tests/
 ├── Encurtador.UnitTests/                    # Sem HTTP, banco ou arquivo
-│   ├── LinkServiceTests.cs
+│   ├── Fakes/
+│   │   ├── InMemoryLinkRepository.cs
+│   │   └── FixedTimeProvider.cs
+│   ├── LinkTests.cs                         # IsExpiredAt
+│   ├── LinkServiceCreateTests.cs            # Regras de criação e limite
+│   ├── LinkServiceRedirectTests.cs          # Redirecionamento e contagem
+│   ├── LinkServiceStatsTests.cs             # Consulta com chave
 │   ├── ShortCodeGeneratorTests.cs
 │   ├── ManagementKeyTests.cs
 │   └── UrlValidatorTests.cs
 └── Encurtador.IntegrationTests/             # Pela pilha HTTP, SQLite em arquivo temporário
+    ├── LinkApiFactory.cs                    # WebApplicationFactory com arquivo temporário
+    ├── DatabaseConstraintsTests.cs          # Unicidade e check no banco
     ├── LinkCreationEndpointTests.cs         # Caminho feliz e 400 com ProblemDetails
     ├── RedirectEndpointTests.cs             # Caminho feliz, expirado, não encontrado
     ├── LinkStatsEndpointTests.cs            # Caminho feliz, 400, 401
-    ├── ConcurrencyTests.cs                  # 100 acessos simultâneos, criação com mesmo código
+    ├── ConcurrentCreationTests.cs           # Criação simultânea com mesmo código
+    ├── ConcurrentAccessTests.cs             # 100 acessos simultâneos
     ├── PersistenceTests.cs                  # Reinício da aplicação
-    └── RateLimitTests.cs
+    └── RateLimitTests.cs                    # Limite de criação e fiação da porta
 ```
 
-**Decisão de estrutura**: quatro projetos de produção e de teste, em vez de um só.
+**Decisão de estrutura**: cinco projetos (três de produção e dois de teste), em vez de um só.
 - `Application` sem EF e sem ASP.NET garante por compilação que as regras não dependem de infraestrutura (Princípios II e III).
 - `Infrastructure` isolado é o único ponto onde o provider é trocado.
 - Testes unitários e de integração em projetos separados (Restrições Técnicas).
