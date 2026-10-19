@@ -13,7 +13,7 @@
 
 ## Completude dos Requisitos
 
-- [ ] Nenhum marcador [NEEDS CLARIFICATION] restante (REQ-013 pendente)
+- [x] Nenhum marcador [NEEDS CLARIFICATION] restante (REQ-013 pendente)
 - [x] Requisitos testáveis e não ambíguos
 - [x] Critérios de sucesso mensuráveis
 - [x] Critérios de sucesso independentes de tecnologia

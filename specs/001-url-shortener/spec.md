@@ -8,6 +8,15 @@
 
 **Entrada**: Descrição do usuário: "Um encurtador de links. O criador informa uma URL longa e recebe um link curto para compartilhar. Quem clica no link curto é redirecionado ao destino, e cada acesso é contado. O criador consegue consultar quantos acessos o link dele recebeu."
 
+## Clarifications
+
+### Session 2026-10-19
+
+- Q: Como o criador prova que é o dono do link na hora de consultar o total de acessos, já que não há cadastro nem login? → A: Chave secreta de gerenciamento, entregue uma única vez na criação. O sistema guarda apenas o hash dela; se o criador perder a chave, não há recuperação.
+- Q: Deve haver um limite de quantos links uma mesma origem pode criar em um período, para evitar abuso da criação anônima? → A: Sim, limite por endereço de origem na criação, com valor definido no plano. Excedentes são recusados com mensagem explicativa.
+- Q: Qual volume de uso o sistema deve suportar nesta versão, em acessos por dia aos links? → A: Pequena escala, até cerca de 100 mil acessos por dia.
+- Q: Algum código personalizado deve ser proibido por já ser usado pelas próprias rotas do sistema, como `api` ou `health`? → A: Sim, uma lista fixa de palavras reservadas, recusadas com mensagem explicativa. A lista é definida no plano.
+
 ## Cenários de Usuário e Testes *(obrigatório)*
 
 ### História de Usuário 1 - Criar link curto a partir de uma URL longa (Prioridade: P1)
@@ -90,10 +99,12 @@ O criador consulta quantos acessos o link dele recebeu, para acompanhar o alcanc
 - **REQ-010**: Um link expirado NÃO DEVE redirecionar o visitante e NÃO DEVE alterar o contador. O visitante DEVE ver uma mensagem informando que o link expirou.
 - **REQ-011**: Um código que não corresponde a nenhum link DEVE exibir mensagem de link não encontrado, sem alterar nenhum contador.
 - **REQ-012**: O contador de acessos NUNCA DEVE diminuir nem ser zerado, em nenhuma circunstância, inclusive após a expiração do link.
-- **REQ-013**: O criador DEVE conseguir consultar o total de acessos do próprio link. [NEEDS CLARIFICATION: como o criador prova que é o dono do link para consultar o total, já que não há cadastro nem login? Opções: (A) chave secreta de gerenciamento entregue ao criador na criação; (B) consulta pública pelo próprio código; (C) código de consulta separado, gerado junto com o link curto]
+- **REQ-013**: O criador DEVE conseguir consultar o total de acessos do próprio link apresentando a chave secreta de gerenciamento recebida na criação. Sem essa chave, a consulta DEVE ser recusada. A chave é entregue uma única vez na criação e o sistema guarda apenas o seu hash; se for perdida, não há recuperação.
 - **REQ-014**: Links, seus destinos, datas de expiração e contadores DEVEM continuar válidos e consultáveis após a aplicação ser reiniciada.
 - **REQ-015**: A contagem DEVE ser precisa mesmo com acessos simultâneos ao mesmo link: nenhum acesso válido pode deixar de ser contado.
 - **REQ-016**: O redirecionamento NÃO DEVE ser memorizado pelo navegador nem por intermediários de forma que acessos seguintes deixem de passar pelo sistema e deixem de ser contados.
+- **REQ-017**: A criação de links DEVE ser limitada por endereço de origem, com o valor definido no plano. Uma criação acima desse limite DEVE ser recusada com mensagem explicativa em português, sem criar nenhum link.
+- **REQ-018**: Um código personalizado que esteja na lista de palavras reservadas do sistema DEVE ser recusado com mensagem explicativa em português, sem criar nenhum link. A lista é definida no plano e comparada sem diferenciar letras maiúsculas de minúsculas.
 
 ### Entidades-Chave *(incluir se a funcionalidade envolve dados)*
 
@@ -114,9 +125,10 @@ O criador consulta quantos acessos o link dele recebeu, para acompanhar o alcanc
 ## Premissas
 
 - A criação de links é anônima: não há cadastro nem login de usuários. Cada criação gera um link novo, mesmo que a mesma URL de destino já tenha sido encurtada antes.
-- Quem consulta o total de acessos deve ser o criador; a forma de provar essa autoria está pendente na pergunta do REQ-013.
+- Quem consulta o total de acessos deve ser o criador, provando a autoria pela chave secreta de gerenciamento (REQ-013).
 - Um código personalizado e um código gerado automaticamente seguem as mesmas regras de unicidade e de busca.
 - A data de expiração é informada com data e hora e deve ter fuso horário explícito.
+- O volume de uso esperado é de pequena escala: até cerca de 100 mil acessos por dia.
 - Um link expirado continua existindo no sistema, e seu total de acessos continua consultável pelo criador.
 - O sistema não verifica se a URL de destino está disponível no momento do cadastro nem durante o redirecionamento.
 - Estão fora de escopo: cadastro e login de usuários, domínio personalizado, relatório geográfico e edição da URL de destino de um link já criado.
