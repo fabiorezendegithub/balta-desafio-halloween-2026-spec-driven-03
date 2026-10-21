@@ -14,9 +14,30 @@ public static class LinkEndpoints
 
     public static IEndpointRouteBuilder MapLinkEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/links", CreateLinkAsync).WithName("CreateLink");
-        app.MapGet("/api/links/{code}", GetLinkStatsAsync).WithName("GetLinkStats");
-        app.MapGet("/{code}", RedirectLinkAsync).WithName("RedirectLink");
+        app.MapPost("/api/links", CreateLinkAsync)
+            .WithName("createLink")
+            .WithSummary("Criar link curto")
+            .WithDescription("Cria um link curto para a URL de destino. Pode receber um código personalizado e uma data de expiração. Devolve a chave de gerenciamento, que só aparece nesta resposta.")
+            .Produces<CreatedLinkResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
+
+        app.MapGet("/api/links/{code}", GetLinkStatsAsync)
+            .WithName("getLinkStats")
+            .WithSummary("Consultar estatísticas do link")
+            .WithDescription("Devolve os dados do link e o total de acessos. Exige o cabeçalho X-Management-Key com a chave recebida na criação.")
+            .Produces<LinkStatsResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        app.MapGet("/{code}", RedirectLinkAsync)
+            .WithName("redirectLink")
+            .WithSummary("Acessar link curto")
+            .WithDescription("Redireciona para a URL de destino (302) e registra um acesso. Um código fora do formato também resulta em 404. Links expirados respondem 410.")
+            .Produces(StatusCodes.Status302Found)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status410Gone);
 
         return app;
     }

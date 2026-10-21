@@ -29,8 +29,8 @@ Chave de configuração (de [data-model.md](./data-model.md)): `Documentation:En
 
 **Propósito**: adicionar as três dependências aprovadas no plano.
 
-- [ ] T001 Adicionar `PackageReference` de `Microsoft.AspNetCore.OpenApi` 10.0.13 e `Scalar.AspNetCore` 2.18.2 em `src/Encurtador.Api/Encurtador.Api.csproj`, e de `YamlDotNet` 18.1.0 em `tests/Encurtador.IntegrationTests/Encurtador.IntegrationTests.csproj`. Justificativa já registrada em `plan.md`, seção "Dependências Novas"
-- [ ] T002 Restaurar e compilar a solução com `dotnet restore Encurtador.slnx` e `dotnet build Encurtador.slnx --no-restore`, sem avisos (`TreatWarningsAsErrors` ativo). Confirmar em `specs/002-openapi-docs/research.md` (R8) que não há conflito de versão com os pacotes `Microsoft.AspNetCore` 10.0.13 do projeto de testes. Depende de T001
+- [X] T001 Adicionar `PackageReference` de `Microsoft.AspNetCore.OpenApi` 10.0.13 e `Scalar.AspNetCore` 2.18.2 em `src/Encurtador.Api/Encurtador.Api.csproj`, e de `YamlDotNet` 18.1.0 em `tests/Encurtador.IntegrationTests/Encurtador.IntegrationTests.csproj`. Justificativa já registrada em `plan.md`, seção "Dependências Novas"
+- [X] T002 Restaurar e compilar a solução com `dotnet restore Encurtador.slnx` e `dotnet build Encurtador.slnx --no-restore`, sem avisos (`TreatWarningsAsErrors` ativo). Confirmar em `specs/002-openapi-docs/research.md` (R8) que não há conflito de versão com os pacotes `Microsoft.AspNetCore` 10.0.13 do projeto de testes. Depende de T001
 **Checkpoint**: a solução compila com as três dependências referenciadas.
 
 ---
@@ -41,11 +41,11 @@ Chave de configuração (de [data-model.md](./data-model.md)): `Documentation:En
 
 **⚠️ CRÍTICO**: nenhuma tarefa de história começa antes desta fase, e o spike T006 precisa passar antes de qualquer anotação de rota (T013 em diante).
 
-- [ ] T004 Criar `src/Encurtador.Api/Documentation/ApiDocumentationExtensions.cs` com a classe estática `ApiDocumentationExtensions`, contendo:
+- [X] T004 Criar `src/Encurtador.Api/Documentation/ApiDocumentationExtensions.cs` com a classe estática `ApiDocumentationExtensions`, contendo:
   - `AddApiDocumentation(this IServiceCollection services, IConfiguration configuration)`: chama `AddOpenApi()` do `Microsoft.AspNetCore.OpenApi`
   - `MapApiDocumentation(this WebApplication app)`: lê `Documentation:Enabled`. Se ausente, usa `app.Environment.IsDevelopment()`. Quando o valor resolvido é `false`, não mapeia nada. Quando `true`, mapeia `MapOpenApi("/api/openapi/v1.json")` e `MapScalar("/api/docs")` (Scalar, `Scalar.AspNetCore`)
   - Nenhuma regra de negócio e nenhum acesso a `DbContext` (Princípios I e II da constituição). Teste de caminho feliz desta rota: T006b e T007 (Princípio V)
-- [ ] T005 Alterar `src/Encurtador.Api/Program.cs`: chamar `builder.Services.AddApiDocumentation(builder.Configuration)` junto aos demais registros de serviços, e `app.MapApiDocumentation()` antes de `app.MapLinkEndpoints()`. Teste de caminho feliz desta rota: T006b e T007 (Princípio V). Depende de T004
+- [X] T005 Alterar `src/Encurtador.Api/Program.cs`: chamar `builder.Services.AddApiDocumentation(builder.Configuration)` junto aos demais registros de serviços, e `app.MapApiDocumentation()` antes de `app.MapLinkEndpoints()`. Teste de caminho feliz desta rota: T006b e T007 (Princípio V). Depende de T004
 - [ ] T006 **Spike de R5 (gate)**: subir a aplicação com `Documentation__Enabled=true ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Encurtador.Api`, abrir `http://localhost:5016/api/docs` e executar apenas o passo do redirecionamento (`quickstart.md`, seção 2), parando no gate. Critério: a interface mostra `302` com o cabeçalho `Location` e não navega para o destino (REQ-028). Se falhar, PARAR e voltar ao usuário conforme o plano B de `research.md` R5. Não ocultar a operação de redirecionamento. Depende de T005
 
 **Checkpoint**: a documentação liga em Development, a interface não segue redirecionamentos e o build passa sem avisos.
@@ -62,21 +62,21 @@ Chave de configuração (de [data-model.md](./data-model.md)): `Documentation:En
 
 > **NOTA: escrever estes testes antes de T011 a T015. Devem falhar antes das anotações: T009 e as asserções de códigos de erro (401, 404, 410, 429). T007 e T008 podem já passar após T005; isso é esperado e não bloqueia a fase.**
 
-- [ ] T007 [US1] Criar `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs` com teste de caminho feliz: em Development, `GET /api/openapi/v1.json` retorna 200 com `application/json`, e `GET /api/docs` retorna 200 (Princípio V; `plan.md`, "Validação", item 2). Usar `WebApplicationFactory<Program>` como em `LinkApiFactory`, e ligar a documentação por `ConfigureAppConfiguration` (`Documentation:Enabled=true`), não pelo ambiente
-- [ ] T008 [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que lê o documento e verifica as três operações pelo `operationId`: `createLink` (`POST /api/links`), `getLinkStats` (`GET /api/links/{code}`) e `redirectLink` (`GET /{code}`), conforme os nomes do contrato 001 (REQ-024) (REQ-019, SC-003). Verificar também que `code` aparece como parâmetro de rota (`in: path`) em `GetLinkStats` e `RedirectLink` (REQ-020)
-- [ ] T009 [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste de coerência com o contrato 001. Ler `specs/001-url-shortener/contracts/openapi.yaml` com `YamlDotNet` (dependência aprovada em `plan.md`, "Dependências Novas"). Verificar, para cada operação do 001, que `operationId`, método, rota, parâmetros e códigos de resposta aparecem no documento gerado. Diferenças de descrição e de exemplo são ignoradas
-- [ ] T006b [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste de caminho feliz da interface: em Development com a documentação ligada, `GET /api/docs` retorna 200 com `text/html`, e o HTML referencia `/api/openapi/v1.json`. Cobre REQ-021 de forma automática
-- [ ] T009b [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que compara as propriedades do schema de `CreatedLinkResponse` e `LinkStatsResponse` no documento com as propriedades dos records C# correspondentes (por reflexão). Se o tipo muda e o documento não acompanha, o teste falha. Cobre REQ-024 de forma automatizada
-- [ ] T010 [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que verifica que `X-Management-Key` aparece como parâmetro de cabeçalho em `GetLinkStats` e que o documento não contém `securitySchemes` (`plan.md`, "Dependências Novas"; `research.md` R6)
+- [X] T007 [US1] Criar `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs` com teste de caminho feliz: em Development, `GET /api/openapi/v1.json` retorna 200 com `application/json`, e `GET /api/docs` retorna 200 (Princípio V; `plan.md`, "Validação", item 2). Usar `WebApplicationFactory<Program>` como em `LinkApiFactory`, e ligar a documentação por `ConfigureAppConfiguration` (`Documentation:Enabled=true`), não pelo ambiente
+- [X] T008 [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que lê o documento e verifica as três operações pelo `operationId`: `createLink` (`POST /api/links`), `getLinkStats` (`GET /api/links/{code}`) e `redirectLink` (`GET /{code}`), conforme os nomes do contrato 001 (REQ-024) (REQ-019, SC-003). Verificar também que `code` aparece como parâmetro de rota (`in: path`) em `GetLinkStats` e `RedirectLink` (REQ-020)
+- [X] T009 [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste de coerência com o contrato 001. Ler `specs/001-url-shortener/contracts/openapi.yaml` com `YamlDotNet` (dependência aprovada em `plan.md`, "Dependências Novas"). Verificar, para cada operação do 001, que `operationId`, método, rota, parâmetros e códigos de resposta aparecem no documento gerado. Diferenças de descrição e de exemplo são ignoradas
+- [X] T006b [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste de caminho feliz da interface: em Development com a documentação ligada, `GET /api/docs` retorna 200 com `text/html`, e o HTML referencia `/api/openapi/v1.json`. Cobre REQ-021 de forma automática
+- [X] T009b [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que compara as propriedades do schema de `CreatedLinkResponse` e `LinkStatsResponse` no documento com as propriedades dos records C# correspondentes (por reflexão). Se o tipo muda e o documento não acompanha, o teste falha. Cobre REQ-024 de forma automatizada
+- [X] T010 [US1] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que verifica que `X-Management-Key` aparece como parâmetro de cabeçalho em `GetLinkStats` e que o documento não contém `securitySchemes` (`plan.md`, "Dependências Novas"; `research.md` R6)
 
 ### Implementação da História 1
 
-- [ ] T011 [P] [US1] Em `src/Encurtador.Api/Models/CreateLinkRequest.cs`, adicionar exemplo fictício em português para a URL de destino, o código personalizado opcional e a data de expiração opcional. Exemplos sem chave real (REQ-025, REQ-026)
-- [ ] T012 [P] [US1] Em `src/Encurtador.Api/Models/LinkResponses.cs`, adicionar exemplos fictícios para `CreatedLinkResponse` e `LinkStatsResponse`, sem chave de gerenciamento real (REQ-025, REQ-026)
-- [ ] T013 [US1] Em `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`, anotar a rota `CreateLink` com `WithSummary`, `WithDescription` em português, `Produces<CreatedLinkResponse>(201)` e `ProducesProblem` para 400 e 429 (REQ-020; `research.md` R6)
-- [ ] T014 [US1] Em `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`, anotar `GetLinkStats` com resumo e descrição em português, `Produces<LinkStatsResponse>(200)` e `ProducesProblem` para 400, 401 e 404. Descrever o cabeçalho `X-Management-Key` (REQ-020)
-- [ ] T015 [US1] Em `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`, anotar `RedirectLink` com resumo e descrição em português, `Produces(302)` com cabeçalho `Location`, e `ProducesProblem` para 404 e 410. Verificar que o código fora do formato resulta em 404 sem validação de formato (`contracts/README.md`, nota final)
-- [ ] T016 [US1] Confirmar em `LinkEndpoints.cs` que o `.WithName(...)` de cada rota é `createLink`, `getLinkStats` e `redirectLink`, e ajustar se necessário, para que os `operationId` do documento coincidam com os nomes do contrato 001 (REQ-024; `contracts/README.md`). Depende de T013, T014 e T015
+- [X] T011 [P] [US1] Em `src/Encurtador.Api/Models/CreateLinkRequest.cs`, adicionar exemplo fictício em português para a URL de destino, o código personalizado opcional e a data de expiração opcional. Exemplos sem chave real (REQ-025, REQ-026)
+- [X] T012 [P] [US1] Em `src/Encurtador.Api/Models/LinkResponses.cs`, adicionar exemplos fictícios para `CreatedLinkResponse` e `LinkStatsResponse`, sem chave de gerenciamento real (REQ-025, REQ-026)
+- [X] T013 [US1] Em `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`, anotar a rota `CreateLink` com `WithSummary`, `WithDescription` em português, `Produces<CreatedLinkResponse>(201)` e `ProducesProblem` para 400 e 429 (REQ-020; `research.md` R6)
+- [X] T014 [US1] Em `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`, anotar `GetLinkStats` com resumo e descrição em português, `Produces<LinkStatsResponse>(200)` e `ProducesProblem` para 400, 401 e 404. Descrever o cabeçalho `X-Management-Key` (REQ-020)
+- [X] T015 [US1] Em `src/Encurtador.Api/Endpoints/LinkEndpoints.cs`, anotar `RedirectLink` com resumo e descrição em português, `Produces(302)` com cabeçalho `Location`, e `ProducesProblem` para 404 e 410. Verificar que o código fora do formato resulta em 404 sem validação de formato (`contracts/README.md`, nota final)
+- [X] T016 [US1] Confirmar em `LinkEndpoints.cs` que o `.WithName(...)` de cada rota é `createLink`, `getLinkStats` e `redirectLink`, e ajustar se necessário, para que os `operationId` do documento coincidam com os nomes do contrato 001 (REQ-024; `contracts/README.md`). Depende de T013, T014 e T015
 
 **Checkpoint**: T006b, T007 a T010 e T009b passam. O documento tem as três operações, com seus códigos de resposta, e não há alteração nos endpoints além das anotações.
 
@@ -90,7 +90,7 @@ Chave de configuração (de [data-model.md](./data-model.md)): `Documentation:En
 
 ### Testes da História 2 (escritos primeiro) ⚠️
 
-- [ ] T017 [US2] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste de efeito colateral (REQ-029, SC-006): criar um link por `POST /api/links`, chamar `GET /api/docs` e `GET /api/openapi/v1.json`, depois `GET /api/links/{code}` com a chave e verificar `ClickCount = 0`. Seguir o padrão de `LinkStatsEndpointTests.cs` para criação e leitura de estatísticas
+- [X] T017 [US2] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste de efeito colateral (REQ-029, SC-006): criar um link por `POST /api/links`, chamar `GET /api/docs` e `GET /api/openapi/v1.json`, depois `GET /api/links/{code}` com a chave e verificar `ClickCount = 0`. Seguir o padrão de `LinkStatsEndpointTests.cs` para criação e leitura de estatísticas
 
 ### Validação da História 2
 
@@ -110,9 +110,9 @@ Chave de configuração (de [data-model.md](./data-model.md)): `Documentation:En
 
 ### Testes da História 3
 
-- [ ] T019 [US3] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste com `WebApplicationFactory<Program>` configurado com `ASPNETCORE_ENVIRONMENT=Production` e sem `Documentation:Enabled`. Verificar que `GET /api/docs`, `GET /api/openapi/v1.json` e `GET /api/rota-inexistente` retornam o mesmo status e o mesmo corpo, byte a byte (REQ-023, SC-004; `research.md` R3)
-- [ ] T020 [US3] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste com Production e `Documentation:Enabled=true` configurado no `WebHostBuilder` (`UseSetting` ou `ConfigureAppConfiguration`). Verificar que `/api/docs` e `/api/openapi/v1.json` retornam 200 (REQ-023, história 3, cenário 3)
-- [ ] T019b [US3] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste com `WebApplicationFactory<Program>` em `Development` **sem** `Documentation:Enabled` configurado. Verificar que `GET /api/docs` e `GET /api/openapi/v1.json` retornam 200. Prova que o ambiente local liga a documentação por padrão (REQ-022, US3 cenário 1)
+- [X] T019 [US3] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste com `WebApplicationFactory<Program>` configurado com `ASPNETCORE_ENVIRONMENT=Production` e sem `Documentation:Enabled`. Verificar que `GET /api/docs`, `GET /api/openapi/v1.json` e `GET /api/rota-inexistente` retornam o mesmo status e o mesmo corpo, byte a byte (REQ-023, SC-004; `research.md` R3)
+- [X] T020 [US3] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste com Production e `Documentation:Enabled=true` configurado no `WebHostBuilder` (`UseSetting` ou `ConfigureAppConfiguration`). Verificar que `/api/docs` e `/api/openapi/v1.json` retornam 200 (REQ-023, história 3, cenário 3)
+- [X] T019b [US3] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste com `WebApplicationFactory<Program>` em `Development` **sem** `Documentation:Enabled` configurado. Verificar que `GET /api/docs` e `GET /api/openapi/v1.json` retornam 200. Prova que o ambiente local liga a documentação por padrão (REQ-022, US3 cenário 1)
 
 **Checkpoint**: T019, T019b e T020 passam, com o código de T004 sem alteração.
 
@@ -122,9 +122,9 @@ Chave de configuração (de [data-model.md](./data-model.md)): `Documentation:En
 
 **Propósito**: validação final e verificação de requisitos transversais.
 
-- [ ] T021 Executar `dotnet test Encurtador.slnx --no-build` e confirmar que todos os testes existentes passam sem alteração nos próprios testes, provando que os três endpoints mantêm status, cabeçalhos e corpos (regressão dos endpoints existentes; `quickstart.md`, seção 6)
-- [ ] T022 [P] Verificar em `src/Encurtador.Application/Links/ReservedCodes.cs` que `"api"` está na lista (já presente, linha 7). Se não houver teste de comparação sem diferenciar maiúsculas de minúsculas para `API`, acrescentar em `tests/Encurtador.UnitTests/UrlValidatorTests.cs` (REQ-018, REQ-027). Nenhuma edição de produção
-- [ ] T023 [P] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que cria um link por `POST /api/links`, guarda a chave de gerenciamento devolvida e verifica que o texto de `GET /api/openapi/v1.json` não contém essa chave. Cobre REQ-026 sem supor o formato da chave. Manter `quickstart.md`, seção 8, como verificação manual complementar
+- [X] T021 Executar `dotnet test Encurtador.slnx --no-build` e confirmar que todos os testes existentes passam sem alteração nos próprios testes, provando que os três endpoints mantêm status, cabeçalhos e corpos (regressão dos endpoints existentes; `quickstart.md`, seção 6)
+- [X] T022 [P] Verificar em `src/Encurtador.Application/Links/ReservedCodes.cs` que `"api"` está na lista (já presente, linha 7). Se não houver teste de comparação sem diferenciar maiúsculas de minúsculas para `API`, acrescentar em `tests/Encurtador.UnitTests/UrlValidatorTests.cs` (REQ-018, REQ-027). Nenhuma edição de produção
+- [X] T023 [P] Em `tests/Encurtador.IntegrationTests/ApiDocumentationTests.cs`, teste que cria um link por `POST /api/links`, guarda a chave de gerenciamento devolvida e verifica que o texto de `GET /api/openapi/v1.json` não contém essa chave. Cobre REQ-026 sem supor o formato da chave. Manter `quickstart.md`, seção 8, como verificação manual complementar
 - [ ] T024 Executar o roteiro completo de `specs/002-openapi-docs/quickstart.md` (seções 1 a 8) e registrar o resultado de cada seção no próprio arquivo. Revisar em português todos os resumos, descrições e exemplos anotados em T011 a T015, e registrar na seção 9 do quickstart a lista de textos revisados (REQ-025)
 
 ---

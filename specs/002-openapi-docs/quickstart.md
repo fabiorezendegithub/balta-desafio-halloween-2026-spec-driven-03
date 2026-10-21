@@ -38,7 +38,8 @@ Em Development a documentação já fica ligada por padrão. Sem a variável, o 
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5016/api/openapi/v1.json   # esperado: 200
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5016/api/docs               # esperado: 200
+curl -s -o /dev/null -w "%{http_code} %header{location}\n" http://localhost:5016/api/docs   # esperado: 302, Location: docs/ (URL canônica /api/docs, redirecionamento padrão do Scalar)
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5016/api/docs/                    # esperado: 200
 ```
 
 Conferir no JSON que estão as três operações (`createLink`, `getLinkStats`, `redirectLink`), com `X-Management-Key` como parâmetro de cabeçalho e sem `securitySchemes`.

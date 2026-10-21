@@ -1,3 +1,4 @@
+using Encurtador.Api.Documentation;
 using Encurtador.Api.Endpoints;
 using Encurtador.Api.RateLimiting;
 using Encurtador.Application.Links;
@@ -10,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddProblemDetails();
+builder.Services.AddApiDocumentation(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 
 var linkOptions = new LinkOptions(
@@ -29,6 +31,7 @@ using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
 }
 
+app.MapApiDocumentation();
 app.MapLinkEndpoints();
 
 app.Run();

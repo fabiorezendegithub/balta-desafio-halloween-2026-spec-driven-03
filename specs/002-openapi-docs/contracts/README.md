@@ -7,7 +7,7 @@
 Quando a documentação está ligada, a aplicação publica:
 
 - `GET /api/openapi/v1.json`: documento OpenAPI 3.1 gerado a partir das Minimal APIs.
-- `GET /api/docs`: interface interativa (Scalar) sobre o documento acima.
+- `GET /api/docs`: interface interativa (Scalar) sobre o documento acima. URL canônica. O Scalar responde `302` com `Location: docs/` (resolve para `/api/docs/`, que responde 200). Esse redirecionamento é o comportamento padrão aceito; não há rota personalizada para eliminá-lo.
 
 Quando desligada, ambos respondem como uma rota inexistente (REQ-023).
 

@@ -6,7 +6,12 @@ using Microsoft.Data.Sqlite;
 namespace Encurtador.IntegrationTests;
 
 // Sobe a aplicação real com SQLite em arquivo temporário. Sem arquivo informado, o arquivo é apagado no Dispose.
-public sealed class LinkApiFactory(string? databasePath = null, int creationLimitPerHour = 1000) : WebApplicationFactory<Program>
+// environmentName e documentationEnabled são opcionais: sem eles, vale o padrão de testes (Development) e a configuração do projeto.
+public sealed class LinkApiFactory(
+    string? databasePath = null,
+    int creationLimitPerHour = 1000,
+    string? environmentName = null,
+    bool? documentationEnabled = null) : WebApplicationFactory<Program>
 {
     private readonly bool _ownsDatabase = databasePath is null;
 
@@ -20,6 +25,16 @@ public sealed class LinkApiFactory(string? databasePath = null, int creationLimi
         builder.UseSetting("Database:Provider", "Sqlite");
         builder.UseSetting("Database:ConnectionString", $"Data Source={DatabasePath}");
         builder.UseSetting("Links:CreationLimitPerHour", creationLimitPerHour.ToString(CultureInfo.InvariantCulture));
+
+        if (environmentName is not null)
+        {
+            builder.UseEnvironment(environmentName);
+        }
+
+        if (documentationEnabled is { } enabled)
+        {
+            builder.UseSetting("Documentation:Enabled", enabled ? "true" : "false");
+        }
     }
 
     protected override void Dispose(bool disposing)
