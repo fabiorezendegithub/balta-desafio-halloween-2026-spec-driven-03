@@ -8,6 +8,15 @@
 
 **Entrada**: Descrição do usuário: "Adicionar documentação OpenAPI à Minimal API existente, permitindo que desenvolvedores visualizem os endpoints disponíveis, consultem seus contratos de requisição e resposta e executem chamadas HTTP por meio de uma interface web interativa."
 
+## Clarifications
+
+### Session 2026-10-20
+
+- Q: Em quais ambientes a interface de documentação deve ficar ligada por padrão, além do ambiente local do desenvolvedor? → A: Só o ambiente local de desenvolvimento.
+- Q: Os textos fixos da própria interface de documentação (botões e rótulos vindos da ferramenta) também devem ficar em português? → A: Não; só o conteúdo escrito pela equipe fica em português, e os rótulos fixos da ferramenta podem ficar em inglês.
+- Q: Quando a documentação está desligada, qual resposta a aplicação deve dar ao acessar o caminho dela? → A: 404 idêntico ao de uma rota inexistente, com o mesmo corpo.
+- Q: Quais cabeçalhos de resposta a interface deve mostrar depois que o desenvolvedor executa uma chamada? → A: Tipo do conteúdo e localização (quando houver) em destaque, com a lista completa dos cabeçalhos em seção recolhível.
+
 ## Cenários de Usuário e Testes *(obrigatório)*
 
 ### História de Usuário 1 - Descobrir os endpoints e seus contratos (Prioridade: P1)
@@ -43,7 +52,7 @@ O desenvolvedor testa a API pela própria documentação: preenche os campos de 
 3. **Dado** uma chave de gerenciamento ausente ou incorreta, **quando** o desenvolvedor executa a consulta de estatísticas, **então** vê a resposta de não autorizado, no formato de erro da API.
 4. **Dado** uma URL de destino inválida no formulário de criação, **quando** o desenvolvedor executa a chamada, **então** vê a resposta de dados inválidos com a mensagem explicativa.
 5. **Dado** um código curto existente, **quando** o desenvolvedor executa o redirecionamento pela interface, **então** vê que a resposta é um redirecionamento e qual é a URL de destino, sem que a interface siga o redirecionamento automaticamente.
-6. **Dado** que o desenvolvedor executou uma chamada, **quando** ele consulta a resposta, **então** vê o status HTTP, os cabeçalhos relevantes e o corpo recebido.
+6. **Dado** que o desenvolvedor executou uma chamada, **quando** ele consulta a resposta, **então** vê o status HTTP, o tipo do conteúdo e a localização (quando houver) em destaque, a lista completa dos cabeçalhos em seção recolhível e o corpo recebido.
 
 ---
 
@@ -58,7 +67,7 @@ A equipe que opera o encurtador em produção não deixa a interface de document
 **Cenários de aceitação**:
 
 1. **Dado** a aplicação em execução no ambiente de desenvolvimento, **quando** alguém acessa a interface de documentação, **então** ela está disponível.
-2. **Dado** a aplicação em execução em produção com a configuração padrão, **quando** alguém tenta acessar a interface de documentação, **então** a interface não está disponível e a resposta não revela que ela existe.
+2. **Dado** a aplicação em execução em produção com a configuração padrão, **quando** alguém tenta acessar a interface de documentação, **então** a interface não está disponível e a resposta é um 404 idêntico ao de uma rota inexistente, com o mesmo corpo.
 3. **Dado** a aplicação em produção, **quando** a equipe habilita a documentação por configuração explícita, **então** a interface passa a ficar disponível.
 
 ---
@@ -77,10 +86,10 @@ A equipe que opera o encurtador em produção não deixa a interface de document
 - **REQ-019**: O sistema DEVE publicar um documento OpenAPI que descreva todos os endpoints HTTP existentes da API: criação de link, consulta de estatísticas e redirecionamento pelo código curto.
 - **REQ-020**: Para cada endpoint, o documento DEVE informar a rota, o método HTTP, os parâmetros (código na rota e cabeçalho de chave de gerenciamento, quando houver), o corpo da requisição, os schemas da resposta de sucesso e os códigos de resposta possíveis, com seus formatos de erro.
 - **REQ-021**: A documentação DEVE oferecer uma interface web interativa na qual o desenvolvedor pode preencher os parâmetros de um endpoint, enviar a chamada HTTP e ver a resposta recebida, sem instalar ferramentas externas.
-- **REQ-022**: A interface de documentação e o documento OpenAPI DEVEM estar disponíveis no ambiente de desenvolvimento.
-- **REQ-023**: Fora do ambiente de desenvolvimento, a interface de documentação NÃO DEVE estar disponível por padrão. Ela só PODE ser habilitada por configuração explícita, e, quando não habilitada, a resposta NÃO DEVE revelar que a documentação existe.
+- **REQ-022**: A interface de documentação e o documento OpenAPI DEVEM estar disponíveis no ambiente local de desenvolvimento.
+- **REQ-023**: Fora do ambiente local de desenvolvimento (incluindo ambientes de teste compartilhados e produção), a interface de documentação NÃO DEVE estar disponível por padrão. Ela só PODE ser habilitada por configuração explícita. Quando não habilitada, o caminho da documentação DEVE responder 404 idêntico ao de uma rota inexistente, com o mesmo corpo, para não revelar que a documentação existe.
 - **REQ-024**: A documentação DEVE refletir o comportamento atual dos endpoints. Uma mudança em um endpoint DEVE aparecer na documentação sem exigir edição manual separada do documento.
-- **REQ-025**: As descrições, nomes de campos de exemplo e textos explicativos da documentação DEVEM estar em português, seguindo o idioma das mensagens de erro da API.
+- **REQ-025**: As descrições, nomes de campos de exemplo e textos explicativos escritos pela equipe na documentação DEVEM estar em português, seguindo o idioma das mensagens de erro da API. Os rótulos fixos da ferramenta de interface (botões e campos padrão) PODEM permanecer em inglês.
 - **REQ-026**: Os exemplos mostrados na documentação DEVEM usar dados fictícios e NÃO DEVEM conter chaves de gerenciamento reais de nenhum link.
 - **REQ-027**: As rotas da própria documentação DEVEM ser reservadas, de modo que nenhum código personalizado possa coincidir com elas, conforme as regras de REQ-018.
 - **REQ-028**: A interface de documentação NÃO DEVE seguir automaticamente redirecionamentos ao executar o endpoint de redirecionamento. Ela DEVE mostrar a resposta de redirecionamento e a URL de destino.
@@ -105,7 +114,7 @@ Não se aplica: esta funcionalidade descreve a API existente e não cria novos d
 
 - Esta funcionalidade documenta apenas os endpoints já definidos na especificação 001. Nenhum endpoint novo é criado.
 - O documento OpenAPI gerado pela própria aplicação não substitui o contrato de planejamento já existente em `specs/001-url-shortener/contracts/`. Os dois devem ser mantidos coerentes pelo processo de planejamento.
-- "Ambiente de desenvolvimento" é o ambiente local ou de testes usado pelo desenvolvedor, nunca o ambiente de produção.
+- "Ambiente de desenvolvimento" é somente o ambiente local usado pelo desenvolvedor. Ambientes de teste compartilhados e o ambiente de produção ficam fora dele.
 - A interface de documentação não tem controle de acesso próprio no ambiente de desenvolvimento. A proteção de produção é feita pela não exposição padrão (REQ-023).
 - A chave de gerenciamento é informada manualmente pelo desenvolvedor em cada chamada que a exige. Não há login nem sessão na documentação.
 - A numeração dos requisitos continua a partir de REQ-019, para não repetir identificadores da especificação 001.
