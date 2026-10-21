@@ -15,18 +15,20 @@ Este documento é a fonte viva do contrato. Não há arquivo OpenAPI escrito à 
 
 ## Operações que o documento deve conter
 
-Conferidas pelo teste de integração de coerência com o contrato 001 (ver [quickstart.md](../quickstart.md)).
+Conferidas pelo teste de integração de coerência com o contrato 001 (ver [quickstart.md](../quickstart.md)). Os `operationId` seguem os nomes do contrato 001, em camelCase (REQ-024).
 
 | operationId | Método e rota | Parâmetros | Respostas |
 |-------------|---------------|------------|-----------|
-| `CreateLink` | `POST /api/links` | corpo `CreateLinkRequest` | `201` (`CreatedLinkResponse`, `Location`), `400` (ProblemDetails), `429` (ProblemDetails) |
-| `GetLinkStats` | `GET /api/links/{code}` | rota `code`; cabeçalho `X-Management-Key` | `200` (`LinkStatsResponse`), `400`, `401`, `404` (ProblemDetails) |
-| `RedirectLink` | `GET /{code}` | rota `code` | `302` (`Location`), `404` e `410` (ProblemDetails) |
+| `createLink` | `POST /api/links` | corpo `CreateLinkRequest` | `201` (`CreatedLinkResponse`, `Location`), `400` (ProblemDetails), `429` (ProblemDetails) |
+| `getLinkStats` | `GET /api/links/{code}` | rota `code`; cabeçalho `X-Management-Key` | `200` (`LinkStatsResponse`), `400`, `401`, `404` (ProblemDetails) |
+| `redirectLink` | `GET /{code}` | rota `code` | `302` (`Location`), `404` e `410` (ProblemDetails) |
 
 Os códigos seguem a tabela "Decisões de Resposta HTTP" de `specs/001-url-shortener/plan.md`.
 
 ## Coerência com o contrato 001
 
 O contrato de planejamento está em [`specs/001-url-shortener/contracts/openapi.yaml`](../../001-url-shortener/contracts/openapi.yaml). O documento gerado deve ter as mesmas operações, os mesmos parâmetros e os mesmos códigos de resposta. Diferenças de descrição e de exemplo são aceitas. Diferenças estruturais falham o teste.
+
+A tabela acima é a referência deste contrato, mas o teste compara o documento gerado com o YAML do 001, lido com `YamlDotNet`, e não com esta tabela.
 
 Atenção a um ponto conhecido: o contrato 001 declara `GET /{code}` com código fora do formato resultando em 404, sem validação de formato. Isso deve ser respeitado pela anotação do endpoint.

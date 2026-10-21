@@ -56,7 +56,7 @@ Este documento consolida as decisões técnicas do plano. Não há marcadores `[
 
 ## R4. Ativação por configuração
 
-**Decisão**: chave `Documentation:Enabled`. Padrão `false` em `appsettings.json`. `true` em `appsettings.Development.json`. Em produção ou teste compartilhado, o valor só muda por configuração explícita (variável de ambiente `Documentation__Enabled=true` ou equivalente).
+**Decisão**: chave `Documentation:Enabled`. Padrão `false` em `appsettings.json`. Nenhum arquivo versionado define `true`. O desenvolvedor liga localmente com a variável de ambiente `Documentation__Enabled=true`. Os testes de integração ligam pelo `WebApplicationFactory`, sem depender do nome do ambiente.
 
 **Justificativa**: REQ-022 e REQ-023 exigem que a regra seja decidida por configuração, não pelo nome do ambiente. Assim, a equipe liga a documentação em um ambiente compartilhado sem alterar código, e um ambiente novo nasce fechado por padrão. Um único ponto de decisão em `Program.cs` evita ramificações espalhadas.
 
@@ -89,10 +89,10 @@ REQ-029 não tem risco: a interface só chama o servidor quando o usuário clica
 
 ## R7. Coerência com o contrato da especificação 001
 
-**Decisão**: o documento gerado é o contrato vivo da API. `specs/001-url-shortener/contracts/openapi.yaml` continua como contrato de planejamento. A divergência é verificada no teste de integração, que compara operações, parâmetros e códigos de resposta do documento gerado com o contrato 001 (ver `quickstart.md`).
+**Decisão**: o documento gerado é o contrato vivo da API. `specs/001-url-shortener/contracts/openapi.yaml` continua como contrato de planejamento. A divergência é verificada no teste de integração, que compara operações, parâmetros e códigos de resposta do documento gerado com o `openapi.yaml` do 001, lido com `YamlDotNet` (ver T009 em `tasks.md`).
 
 **Justificativa**: a premissa da spec 002 exige que os dois documentos fiquem coerentes pelo processo de planejamento. Um teste automatizado é mais barato de manter do que revisão manual.
 
 ## R8. Dependências novas (Princípio VII)
 
-Resumidas em `plan.md`, seção "Dependências Novas". Nenhuma outra biblioteca é necessária.
+Resumidas em `plan.md`, seção "Dependências Novas". Além do `YamlDotNet` (teste de coerência, R7), nenhuma outra biblioteca é necessária.

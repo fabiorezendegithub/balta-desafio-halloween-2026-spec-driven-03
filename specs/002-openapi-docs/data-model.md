@@ -8,4 +8,4 @@ Não se aplica. A especificação declara "Entidades-Chave: não se aplica", por
 
 | Chave | Tipo | Padrão | Ambiente |
 |-------|------|--------|----------|
-| `Documentation:Enabled` | `bool` | `false` | `true` em `appsettings.Development.json` |
+| `Documentation:Enabled` | `bool?` | `true` em Development, `false` nos demais | Opcional. Nenhum arquivo versionado define a chave. Quando presente, sobrescreve o padrão nos dois sentidos |

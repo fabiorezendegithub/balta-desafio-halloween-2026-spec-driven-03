@@ -14,8 +14,10 @@
 
 - Q: Em quais ambientes a interface de documentação deve ficar ligada por padrão, além do ambiente local do desenvolvedor? → A: Só o ambiente local de desenvolvimento.
 - Q: Os textos fixos da própria interface de documentação (botões e rótulos vindos da ferramenta) também devem ficar em português? → A: Não; só o conteúdo escrito pela equipe fica em português, e os rótulos fixos da ferramenta podem ficar em inglês.
+- Q: Além do nome de ambiente `Development`, o que define o ambiente local onde a documentação fica ligada por padrão? → A: Somente o nome de ambiente `Development`. Qualquer outro nome, inclusive de ambiente compartilhado, fica desligado por padrão.
 - Q: Quando a documentação está desligada, qual resposta a aplicação deve dar ao acessar o caminho dela? → A: 404 idêntico ao de uma rota inexistente, com o mesmo corpo.
 - Q: Quais cabeçalhos de resposta a interface deve mostrar depois que o desenvolvedor executa uma chamada? → A: Tipo do conteúdo e localização (quando houver) em destaque, com a lista completa dos cabeçalhos em seção recolhível.
+- Q: Os identificadores técnicos das operações (`operationId`) devem seguir os nomes do contrato 001 (`createLink`, `getLinkStats`, `redirectLink`)? → A: Sim, os mesmos nomes do contrato 001, em camelCase.
 
 ## Cenários de Usuário e Testes *(obrigatório)*
 
@@ -74,7 +76,7 @@ A equipe que opera o encurtador em produção não deixa a interface de document
 
 ### Casos de Borda
 
-- O que acontece se um desenvolvedor tentar criar um link com um código personalizado igual ao caminho da própria documentação (por exemplo, `swagger`)? A criação deve ser recusada como palavra reservada, conforme REQ-018, e a documentação deve continuar acessível.
+- O que acontece se um desenvolvedor tentar criar um link com o código personalizado `api`, prefixo das rotas da documentação? A criação deve ser recusada como palavra reservada, conforme REQ-018 e REQ-027, e a documentação deve continuar acessível em `/api/docs`.
 - O que acontece se a criação de links pela interface atingir o limite de criações por origem? A resposta de limite excedido deve aparecer na documentação e ser exibida na interface com a mensagem explicativa.
 - O que acontece quando um endpoint é alterado? A documentação deve refletir a alteração sem que alguém precise editar um documento separado.
 - O que acontece se a interface for usada para executar uma chamada a um código que expirou? A resposta de link expirado deve ser exibida como os demais erros.
@@ -88,7 +90,7 @@ A equipe que opera o encurtador em produção não deixa a interface de document
 - **REQ-021**: A documentação DEVE oferecer uma interface web interativa na qual o desenvolvedor pode preencher os parâmetros de um endpoint, enviar a chamada HTTP e ver a resposta recebida, sem instalar ferramentas externas.
 - **REQ-022**: A interface de documentação e o documento OpenAPI DEVEM estar disponíveis no ambiente local de desenvolvimento.
 - **REQ-023**: Fora do ambiente local de desenvolvimento (incluindo ambientes de teste compartilhados e produção), a interface de documentação NÃO DEVE estar disponível por padrão. Ela só PODE ser habilitada por configuração explícita. Quando não habilitada, o caminho da documentação DEVE responder 404 idêntico ao de uma rota inexistente, com o mesmo corpo, para não revelar que a documentação existe.
-- **REQ-024**: A documentação DEVE refletir o comportamento atual dos endpoints. Uma mudança em um endpoint DEVE aparecer na documentação sem exigir edição manual separada do documento.
+- **REQ-024**: A documentação DEVE refletir o comportamento atual dos endpoints. Uma mudança em um endpoint DEVE aparecer na documentação sem exigir edição manual separada do documento. Cada operação do documento DEVE usar o mesmo `operationId` que a operação correspondente do contrato 001 (`createLink`, `getLinkStats`, `redirectLink`).
 - **REQ-025**: As descrições, nomes de campos de exemplo e textos explicativos escritos pela equipe na documentação DEVEM estar em português, seguindo o idioma das mensagens de erro da API. Os rótulos fixos da ferramenta de interface (botões e campos padrão) PODEM permanecer em inglês.
 - **REQ-026**: Os exemplos mostrados na documentação DEVEM usar dados fictícios e NÃO DEVEM conter chaves de gerenciamento reais de nenhum link.
 - **REQ-027**: As rotas da própria documentação DEVEM ser reservadas, de modo que nenhum código personalizado possa coincidir com elas, conforme as regras de REQ-018.
@@ -114,7 +116,7 @@ Não se aplica: esta funcionalidade descreve a API existente e não cria novos d
 
 - Esta funcionalidade documenta apenas os endpoints já definidos na especificação 001. Nenhum endpoint novo é criado.
 - O documento OpenAPI gerado pela própria aplicação não substitui o contrato de planejamento já existente em `specs/001-url-shortener/contracts/`. Os dois devem ser mantidos coerentes pelo processo de planejamento.
-- "Ambiente de desenvolvimento" é somente o ambiente local usado pelo desenvolvedor. Ambientes de teste compartilhados e o ambiente de produção ficam fora dele.
+- "Ambiente local de desenvolvimento" é o ambiente da aplicação identificado pelo nome `Development`. Qualquer outro nome de ambiente, inclusive de teste compartilhado e de produção, fica fora dele, independentemente do host.
 - A interface de documentação não tem controle de acesso próprio no ambiente de desenvolvimento. A proteção de produção é feita pela não exposição padrão (REQ-023).
 - A chave de gerenciamento é informada manualmente pelo desenvolvedor em cada chamada que a exige. Não há login nem sessão na documentação.
 - A numeração dos requisitos continua a partir de REQ-019, para não repetir identificadores da especificação 001.

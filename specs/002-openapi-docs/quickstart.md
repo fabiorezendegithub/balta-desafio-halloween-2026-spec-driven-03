@@ -20,10 +20,10 @@ Esperado: build sem erros nem avisos (`TreatWarningsAsErrors` ativo).
 
 ## 2. Spike da interface (R5), antes das demais tarefas
 
-Subir a aplicação em Development e abrir `http://localhost:5016/api/docs`.
+Subir a aplicação em Development, com a documentação ligada pela variável `Documentation__Enabled=true`, e abrir `http://localhost:5016/api/docs`.
 
 ```bash
-ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Encurtador.Api
+Documentation__Enabled=true ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/Encurtador.Api
 ```
 
 Passos:
@@ -33,6 +33,8 @@ Passos:
 Se o passo 2 falhar, parar e voltar ao usuário, conforme o plano B de R5. Não ocultar a operação.
 
 ## 3. Documentação ligada em desenvolvimento
+
+Em Development a documentação já fica ligada por padrão. Sem a variável, o comando da seção 2 também serve.
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:5016/api/openapi/v1.json   # esperado: 200
@@ -85,13 +87,28 @@ curl -s http://localhost:5016/api/openapi/v1.json | grep -E 'ManagementKey|[A-Za
 
 Esperado: nenhuma ocorrência de chave real. Os exemplos usam valores fictícios evidentes.
 
+## 9. Textos em português revisados (REQ-025)
+
+Revisar os resumos, descrições e exemplos anotados em T011 a T015 e marcar cada item revisado:
+
+- [ ] `CreateLink`: resumo e descrição
+- [ ] `GetLinkStats`: resumo, descrição e cabeçalho `X-Management-Key`
+- [ ] `RedirectLink`: resumo e descrição
+- [ ] Exemplos de `CreateLinkRequest`, `CreatedLinkResponse` e `LinkStatsResponse`
+
+Rótulos fixos da interface Scalar podem permanecer em inglês (REQ-025).
+
 ## Critérios de aceite do guia
 
 | Verificação | Requisito |
 |-------------|-----------|
 | Passo 2 | REQ-021, REQ-028 |
 | Passos 3 e 5 | REQ-019, REQ-022, REQ-023 |
+| T019b (teste de integração) | REQ-022 |
 | Passo 4 | REQ-023, SC-004 |
 | Passo 6 | SC-005 e preservação dos endpoints |
 | Passo 7 | REQ-029, SC-006 |
 | Passo 8 | REQ-026 |
+| T006b (teste de integração) | REQ-021 |
+| T009 e T009b (testes de integração) | REQ-020, REQ-024, SC-003 |
+| T023 (teste de integração) | REQ-026 |
